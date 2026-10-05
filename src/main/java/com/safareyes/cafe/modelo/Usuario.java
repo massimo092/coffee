@@ -10,8 +10,8 @@ import lombok.*;
 @Builder
 @EqualsAndHashCode
 @Entity
-@Table(name = "alergeno", schema = "cafeteria")
-public class Alergeno {
+@Table(name = "usuario", schema = "cafeteria")
+public class Usuario {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
@@ -20,7 +20,12 @@ public class Alergeno {
     @Column(name = "nombre", length = 80, nullable = false)
     private String nombre;
 
-    @Column(name = "descripcion")
-    private String descripcion;
+    @Column(name = "email")
+    private String email;
 
+    @Column(name = "password")
+    private String password;
+
+    @Column(name = "rol")
+    private String rol;
 }

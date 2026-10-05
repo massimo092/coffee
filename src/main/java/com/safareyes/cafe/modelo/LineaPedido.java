@@ -3,6 +3,8 @@ package com.safareyes.cafe.modelo;
 import jakarta.persistence.*;
 import lombok.*;
 
+import java.math.BigDecimal;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -20,9 +22,20 @@ public class LineaPedido {
 
     private Integer cantidad;
 
-    private Integer precio_unitario;
+    private BigDecimal precio_unitario;
 
-    @ManyToOne(Fetch = FetchType.LAZY)
+    @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "producto_id")
     private Producto producto;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "pedido_id")
+    private Pedido pedido;
+
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_id")
+    private Usuario usuario;
+
+
 }
