@@ -4,6 +4,8 @@ import jakarta.persistence.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -40,4 +42,11 @@ public class Producto {
     @JoinColumn(name = "categoria_id")
     private Categoria categoria;
 
+    @ManyToMany(fetch =  FetchType.LAZY)
+    @JoinTable(
+            name = "producto_alergeno", schema = "cafeteria",
+            joinColumns = @JoinColumn(name = "producto_id"),
+            inverseJoinColumns = @JoinColumn(name = "alergeno_id")
+    )
+    private List<Alergeno> alergenos;
 }

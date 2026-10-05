@@ -45,6 +45,12 @@ public class Pedido {
     @Column(name = "iva")
     private BigDecimal iva;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "usuario_id")
+    private Usuario usuarioId;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "cupon_id")
+    private Cupon cuponId;
 
 }
