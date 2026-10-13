@@ -5,6 +5,7 @@ import lombok.*;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Getter
 @Setter
@@ -53,4 +54,6 @@ public class Pedido {
     @JoinColumn(name = "cupon_id")
     private Cupon cuponId;
 
+    @OneToMany(mappedBy = "pedido")
+    private List<LineaPedido> lineas;
 }
