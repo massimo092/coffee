@@ -21,7 +21,7 @@ public class CuponController {
     @Autowired
     private cuponRepository cuponRepository;
 
-    // 13. POST /api/v1/cupones - Crear cupón - ADMIN
+    //Crear cupón - ADMIN
     @PostMapping
     public ResponseEntity<Cupon> crearCupon(@Valid @RequestBody Cupon cupon) {
         // Validar que el código sea único
@@ -41,7 +41,7 @@ public class CuponController {
         return ResponseEntity.status(HttpStatus.CREATED).body(saved);
     }
 
-    // 14. POST /api/v1/cupones/validar - Validar código para un subtotal y devolver descuento - Autenticado
+    //Validar código para un subtotal y devolver descuento - Autenticado
     @PostMapping("/validar")
     public ResponseEntity<ValidarCuponResponse> validarCupon(@RequestBody Map<String, Object> body) {
         String codigo = (String) body.get("codigo");
@@ -59,19 +59,19 @@ public class CuponController {
         Cupon cupon = cuponRepository.findByCodigo(codigo)
                 .orElse(new Cupon());
 
-        // Si no existe, devolver no válido
+        // Si no existe devolver no válido
         if (cupon.getId() == null) {
             return ResponseEntity.ok(new ValidarCuponResponse(false, BigDecimal.ZERO,
                     "Cupón no encontrado: " + codigo));
         }
 
-        // RN-06: Verificar que está activo
+        //Verificar que está activo
         if (Boolean.FALSE.equals(cupon.getActivo())) {
             return ResponseEntity.ok(new ValidarCuponResponse(false, BigDecimal.ZERO,
                     "El cupón \"" + codigo + "\" no está activo"));
         }
 
-        // RN-06: Verificar fecha de vigencia
+        //Verificar fecha de vigencia
         LocalDateTime ahora = LocalDateTime.now();
         if (cupon.getFechaInicio() != null && ahora.isBefore(cupon.getFechaInicio())) {
             return ResponseEntity.ok(new ValidarCuponResponse(false, BigDecimal.ZERO,
@@ -82,13 +82,13 @@ public class CuponController {
                     "El cupón \"" + codigo + "\" ha expirado"));
         }
 
-        // RN-06: Verificar usos máximos
+        //Verificar usos máximos
         if (cupon.getUsosMaximos() != null && cupon.getUsosActuales() >= cupon.getUsosMaximos()) {
             return ResponseEntity.ok(new ValidarCuponResponse(false, BigDecimal.ZERO,
                     "El cupón \"" + codigo + "\" ha alcanzado su límite de usos"));
         }
 
-        // RN-06: Verificar importe mínimo
+        //Verificar importe mínimo
         if (cupon.getImporteMinimo() != null && subtotal.compareTo(cupon.getImporteMinimo()) < 0) {
             return ResponseEntity.ok(new ValidarCuponResponse(false, BigDecimal.ZERO,
                     "El subtotal no alcanza el importe mínimo para el cupón \"" + codigo +

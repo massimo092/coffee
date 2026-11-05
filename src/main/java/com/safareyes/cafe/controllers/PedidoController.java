@@ -23,7 +23,7 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/api/v1/pedidos")
+@RequestMapping("/pedidos")
 public class PedidoController {
 
     @Autowired
@@ -32,7 +32,7 @@ public class PedidoController {
     @Autowired
     private PedidoService pedidoService;
 
-    // 10.- Detalle con líneas - ADMIN, BARISTA, CLIENTE (propio)
+    //Detalle con líneas - ADMIN, BARISTA, CLIENTE (propio)
     @GetMapping("/{id}")
     public ResponseEntity<Map<String, Object>> getDetallePedido(@PathVariable Integer id) {
         Pedido pedido = pedidoRepository.findById(id)
@@ -47,7 +47,7 @@ public class PedidoController {
         ));
     }
 
-    // 11. - Listado paginado por estado y fecha, un cliente solo ve los suyos
+    //Listado paginado por estado y fecha, un cliente solo ve los suyos
     @GetMapping
     public Page<Pedido> listarPedidos(
             @RequestParam(required = false) String estado,

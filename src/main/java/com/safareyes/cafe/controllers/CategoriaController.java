@@ -24,14 +24,14 @@ public class CategoriaController {
     @Autowired
     private productoRepository productoRepository;
 
-    // 7. GET /api/v1/categorias - Categorías con número de productos activos - Público
+    //Categorías con número de productos activos - Público
     @GetMapping
     public ResponseEntity<List<ContadorProductos>> getCategorias() {
         List<ContadorProductos> categorias = categoriaRepository.contarProductosActivos();
         return ResponseEntity.ok(categorias);
     }
 
-    // 8. PATCH /api/v1/categorias/{id}/disponibilidad - Agotar o reponer toda una categoría - ADMIN, BARISTA
+    //Agotar o reponer toda una categoría - ADMIN, BARISTA
     @PatchMapping("/{id}/disponibilidad")
     @Transactional
     public ResponseEntity<Map<String, String>> cambiarDisponibilidadCategoria(

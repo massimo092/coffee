@@ -27,21 +27,17 @@ public interface productoRepository extends JpaRepository<Producto, Integer> {
             "INNER JOIN cafeteria.alergeno a ON pa.alergeno_id = a.id")
     List<ProducoConAlergenos> BuscarProductosConAlergenos();
 
-    // Endpoint 1: Carta paginada con filtros opcionales
-    @Query("SELECT p FROM Producto p WHERE p.activo = true " +
-            "AND (:categoriaId IS NULL OR p.categoria.id = :categoriaId) " +
-            "AND (:disponible IS NULL OR p.disponible = :disponible) " +
-            "AND (:buscar IS NULL OR LOWER(p.nombre) LIKE LOWER(CONCAT('%', :buscar, '%'))) ")
-    Page<Producto> findByCartaFiltros(@Param("categoriaId") Integer categoriaId,
-                                      @Param("disponible") Boolean disponible,
-                                      @Param("buscar") String buscar,
-                                      Pageable pageable);
+    //Carta paginada con filtros opcionales
+    Page<Producto> findByActivoTrueAndNombreContainingIgnoreCase(String texto, Pageable pageable);
 
-    // Endpoint 2: Detalle con alérgenos (el findById de JpaRepository ya funciona, pero necesitamos cargar alérgenos)
+    Page<Producto> findByActivoTrueAndCategoriaIdAndNombreContainingIgnoreCase(
+            Integer categoriaId, String texto, Pageable pageable);
+
+    //Detalle con alérgenos
     @Query("SELECT DISTINCT p FROM Producto p LEFT JOIN FETCH p.alergenos WHERE p.id = :id")
     Optional<Producto> findByIdWithAlergenos(@Param("id") Integer id);
 
-    // Endpoint 5: Marcar disponible o agotado
+    //Marcar disponible o agotado
     @Modifying
     @Query("UPDATE Producto p SET p.disponible = :disponible WHERE p.id = :id")
     void updateDisponible(@Param("id") Integer id, @Param("disponible") Boolean disponible);
