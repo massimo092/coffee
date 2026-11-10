@@ -33,7 +33,7 @@ public class PedidoService {
     private pedidoRepository pedidoRepository;
 
     @Autowired
-    private productoRepository productoRepository;
+    private ProductoRepository productoRepository;
 
     @Autowired
     private cuponRepository cuponRepository;

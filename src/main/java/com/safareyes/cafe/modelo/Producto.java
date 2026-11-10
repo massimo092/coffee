@@ -10,10 +10,8 @@ import java.util.Set;
 @Getter
 @Setter
 @NoArgsConstructor
-@ToString
 @AllArgsConstructor
 @Builder
-@EqualsAndHashCode
 @Entity
 @Table(name = "producto", schema = "cafeteria")
 public class Producto {

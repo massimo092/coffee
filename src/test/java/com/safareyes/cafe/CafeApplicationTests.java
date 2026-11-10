@@ -6,7 +6,7 @@ import com.safareyes.cafe.Datos.buscarPorCategoria;
 import com.safareyes.cafe.Datos.lineaPedidoDTO;
 import com.safareyes.cafe.repository.categoriaRepository;
 import com.safareyes.cafe.repository.pedidoRepository;
-import com.safareyes.cafe.repository.productoRepository;
+import com.safareyes.cafe.repository.ProductoRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -17,7 +17,7 @@ import java.util.List;
 class CafeApplicationTests {
 
     @Autowired
-    private productoRepository productoRepository;
+    private ProductoRepository productoRepository;
     @Autowired
     private categoriaRepository categoriaRepository;
     @Autowired

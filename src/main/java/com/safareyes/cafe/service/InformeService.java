@@ -2,8 +2,9 @@ package com.safareyes.cafe.service;
 
 import com.safareyes.cafe.Datos.InformeVentasDTO;
 import com.safareyes.cafe.Datos.ProductoTopDTO;
+import com.safareyes.cafe.repository.ProductoRepository;
 import com.safareyes.cafe.repository.pedidoRepository;
-import com.safareyes.cafe.repository.productoRepository;
+import com.safareyes.cafe.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -17,7 +18,7 @@ import java.util.List;
 public class InformeService {
 
     private final pedidoRepository pedidoRepository;
-    private final productoRepository productoRepository;
+    private final ProductoRepository productoRepository;
 
     // Ventas del día
     public InformeVentasDTO ventasDia(LocalDate fecha) {

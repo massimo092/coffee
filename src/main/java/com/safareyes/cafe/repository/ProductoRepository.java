@@ -13,7 +13,7 @@ import org.springframework.data.repository.query.Param;
 import java.util.List;
 import java.util.Optional;
 
-public interface productoRepository extends JpaRepository<Producto, Integer> {
+public interface ProductoRepository extends JpaRepository<Producto, Integer> {
 
     @Query(nativeQuery = true, value = "SELECT c.nombre AS categoria, COUNT(p.*) AS productos " +
             "FROM cafeteria.producto p " +
@@ -38,20 +38,21 @@ public interface productoRepository extends JpaRepository<Producto, Integer> {
     Optional<Producto> findByIdWithAlergenos(@Param("id") Integer id);
 
     //Marcar disponible o agotado
+    //Marcar disponible o agotado
     @Modifying
     @Query("UPDATE Producto p SET p.disponible = :disponible WHERE p.id = :id")
     void updateDisponible(@Param("id") Integer id, @Param("disponible") Boolean disponible);
-
     // Para informes: productos más vendidos
+
     @Query(nativeQuery = true, value = """
-        SELECT lp.producto_id, p.nombre, SUM(lp.cantidad) AS total_vendido 
+        GROUP BY lp.producto_id, p.nombre, SUM(lp.cantidad) AS total_vendido 
         FROM cafeteria.linea_pedido lp
         JOIN cafeteria.producto p ON lp.producto_id = p.id
         JOIN cafeteria.pedido ped ON lp.pedido_id = ped.id
         WHERE ped.estado = 'ENTREGADO'
         AND ped.fecha_hora >= :desde
         AND ped.fecha_hora <= :hasta
-        GROUP BY lp.producto_id, p.nombre
+        GROUP BY lp.producto_id, p.nombre, lp.producto_id, lp.producto_id
         ORDER BY total_vendido DESC
         """)
     List<Object[]> findProductosTop(@Param("desde") java.time.LocalDateTime desde,

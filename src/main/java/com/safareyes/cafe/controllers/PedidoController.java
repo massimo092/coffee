@@ -1,14 +1,8 @@
 package com.safareyes.cafe.controllers;
 
-import com.safareyes.cafe.Datos.CambiarEstadoRequest;
-import com.safareyes.cafe.Datos.CrearPedidoRequest;
-import com.safareyes.cafe.Datos.InformeVentasDTO;
 import com.safareyes.cafe.Datos.lineaPedidoDTO;
 import com.safareyes.cafe.modelo.Pedido;
 import com.safareyes.cafe.repository.pedidoRepository;
-import com.safareyes.cafe.service.PedidoService;
-import jakarta.validation.Valid;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,14 +17,11 @@ import java.util.List;
 import java.util.Map;
 
 @RestController
-@RequestMapping("/pedidos")
+@RequestMapping("/api/v1/pedidos")
 public class PedidoController {
 
     @Autowired
     private pedidoRepository pedidoRepository;
-
-    @Autowired
-    private PedidoService pedidoService;
 
     //Detalle con líneas - ADMIN, BARISTA, CLIENTE (propio)
     @GetMapping("/{id}")
@@ -70,34 +61,4 @@ public class PedidoController {
         );
     }
 
-    //creacion del pedido
-    @PostMapping
-    public ResponseEntity<Pedido> crearPedido(@Valid @RequestBody CrearPedidoRequest request) {
-        Pedido pedido = pedidoService.crearPedido(request);
-        return ResponseEntity.status(HttpStatus.CREATED).body(pedido);
-    }
-
-    //cambiar estado de el pedido
-    @PatchMapping("/{id}/estado")
-    public ResponseEntity<Pedido> cambiarEstado(
-            @PathVariable Integer id,
-            @Valid @RequestBody CambiarEstadoRequest request) {
-        Pedido pedido = pedidoService.cambiarEstado(id, request);
-        return ResponseEntity.ok(pedido);
-    }
-
-    //informe ventas
-    @GetMapping("/informes/ventas")
-    public ResponseEntity<InformeVentasDTO> obtenerInformeVentas(
-            @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate fechaInicio,
-
-            @RequestParam
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate fechaFin) {
-
-        InformeVentasDTO informe = pedidoService.obtenerInformeVentas(fechaInicio, fechaFin);
-        return ResponseEntity.ok(informe);
-    }
 }
