@@ -45,19 +45,19 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer> {
     // Para informes: productos más vendidos
 
     @Query(nativeQuery = true, value = """
-        GROUP BY lp.producto_id, p.nombre, SUM(lp.cantidad) AS total_vendido 
+        SELECT lp.producto_id, p.nombre, SUM(lp.cantidad) AS total_vendido
         FROM cafeteria.linea_pedido lp
         JOIN cafeteria.producto p ON lp.producto_id = p.id
         JOIN cafeteria.pedido ped ON lp.pedido_id = ped.id
         WHERE ped.estado = 'ENTREGADO'
-        AND ped.fecha_hora >= :desde
-        AND ped.fecha_hora <= :hasta
-        GROUP BY lp.producto_id, p.nombre, lp.producto_id, lp.producto_id
+          AND ped.fecha_hora >= :desde
+          AND ped.fecha_hora <= :hasta
+        GROUP BY lp.producto_id, p.nombre
         ORDER BY total_vendido DESC
         """)
+
     List<Object[]> findProductosTop(@Param("desde") java.time.LocalDateTime desde,
                                     @Param("hasta") java.time.LocalDateTime hasta);
-
     // Buscar productos por categoría (para agotar/reponer categoría)
     List<Producto> findByCategoriaIdAndActivoTrue(Integer categoriaId);
 }

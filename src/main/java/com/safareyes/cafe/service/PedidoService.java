@@ -53,9 +53,7 @@ public class PedidoService {
             "CANCELADO", List.of()
     );
 
-    /**
-     * Crea un pedido aplicando todas las reglas de negocio (RN-01 a RN-09).
-     */
+
     @Transactional
     public Pedido crearPedido(CrearPedidoRequest request) {
         // RN-04: Validar número de líneas
@@ -122,7 +120,7 @@ public class PedidoService {
         // Crear el pedido
         Pedido pedido = Pedido.builder()
                 .fechaHora(LocalDateTime.now())
-                .estado("PENDIENTE")
+                .estado("pendiente")
                 .build();
 
         // RN-09: Calcular número de turno

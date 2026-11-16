@@ -45,6 +45,13 @@ public class ProductoService {
 
         Producto guardado = productoRepository.save(producto);
         dto.setId(guardado.getId());
+        dto.setCategoriaNombre(categoria.getNombre());
+        dto.setAlergenosIds(guardado.getAlergenos().stream()
+                .map(Alergeno::getId)
+                .collect(Collectors.toSet()));
+        dto.setAlergenos(guardado.getAlergenos().stream()
+                .map(Alergeno::getNombre)
+                .toList());
         return dto;
     }
 
@@ -73,9 +80,14 @@ public class ProductoService {
         dto.setDescripcion(p.getDescripcion());
         dto.setPrecio(p.getPrecio());
         dto.setCategoriaId(p.getCategoria() != null ? p.getCategoria().getId() : null);
+        dto.setCategoriaNombre(p.getCategoria() != null ? p.getCategoria().getNombre() : null);
         dto.setAlergenosIds(p.getAlergenos().stream()
                 .map(Alergeno::getId)
                 .collect(Collectors.toSet()));
+        dto.setAlergenos(p.getAlergenos().stream()
+                .map(Alergeno::getNombre)
+                .toList());
+
         return dto;
     }
 }

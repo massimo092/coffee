@@ -15,7 +15,7 @@ public class CategoriaController {
     @Autowired
     private categoriaRepository categoriaRepository;
 
-    //Categorías con número de productos activos - Público
+    //Categorías con número de productos activos - GET 3
     @GetMapping
     public ResponseEntity<List<ContadorProductos>> getCategorias() {
         List<ContadorProductos> categorias = categoriaRepository.contarProductosActivos();

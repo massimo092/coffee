@@ -6,5 +6,4 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/cupones")
 public class CuponController {
 
-    // Los endpoints POST se implementarán manualmente
 }

@@ -19,13 +19,18 @@ import java.util.List;
 public class InformeController {
 
     private final InformeService informeService;
+    @GetMapping
+    public String estado() {
+        return "Servicio de informes activo";
+    }
 
+    //ventas del dia con nº pedidos,total,base e IVA del dia -GET 6
     @GetMapping("/ventas-dia")
     public InformeVentasDTO ventasDia(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate fecha) {
         return informeService.ventasDia(fecha);
     }
-
+    //Ranking de productos más vendidos- GET 7
     @GetMapping("/productos-top")
     public List<ProductoTopDTO> productosTop(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate desde,

@@ -28,10 +28,11 @@ public interface pedidoRepository extends JpaRepository<Pedido, Integer> {
 
     List<lineaPedidoDTO> pedidoConLineas(Integer id);
 
+    //he tenido que añadir el CAST ya que en postman me daba error
     @Query("SELECT p FROM Pedido p " +
             "WHERE (:estado IS NULL OR p.estado = :estado) " +
-            "AND (:fechaInicio IS NULL OR p.fechaHora >= :fechaInicio) " +
-            "AND (:fechaFin IS NULL OR p.fechaHora <= :fechaFin)")
+            "AND (CAST(:fechaInicio AS LocalDateTime) IS NULL OR p.fechaHora >= :fechaInicio) " +
+            "AND (CAST(:fechaFin AS LocalDateTime) IS NULL OR p.fechaHora <= :fechaFin)")
     Page<Pedido> listarPedidos(String estado, LocalDateTime fechaInicio,
                                LocalDateTime fechaFin, Pageable pageable);
 

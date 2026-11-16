@@ -20,7 +20,7 @@ public class ProductoController {
     public ProductoController(ProductoService productoService) {
         this.productoService = productoService;
     }
-
+    //Carta paginada con filtros opcionales -GET 1
     @GetMapping
     public Page<ProductoCreateDto> getCarta(
             @RequestParam(required = false) Integer categoriaId,
@@ -29,11 +29,12 @@ public class ProductoController {
         return productoService.listarCarta(categoriaId, buscar, pageable);
     }
 
+    //detalle con alérgenos -GET 2
     @GetMapping("/{id}")
     public ResponseEntity<ProductoCreateDto> getDetalle(@PathVariable Integer id) {
         return ResponseEntity.ok(productoService.detalle(id));
     }
-
+    //Creacion de un producto -POST
     @PostMapping
     public ResponseEntity<ProductoCreateDto> crear(@Valid @RequestBody ProductoCreateDto dto) {
         return ResponseEntity.status(HttpStatus.CREATED).body(productoService.crear(dto));
