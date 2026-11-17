@@ -10,7 +10,6 @@ import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -20,30 +19,33 @@ public class InformeService {
     private final pedidoRepository pedidoRepository;
     private final ProductoRepository productoRepository;
 
+
     // Ventas del día
     public InformeVentasDTO ventasDia(LocalDate fecha) {
-        LocalDateTime inicio = fecha.atStartOfDay();
-        LocalDateTime fin = fecha.atTime(23, 59, 59);
 
-        Object[] resultado = pedidoRepository.contarInformeVentas(inicio, fin);
-        if (resultado == null || resultado.length < 4) {
-            return new InformeVentasDTO(0L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
-        }
+        LocalDate inicio = fecha;
+        LocalDate fin = fecha.plusDays(1);
+
+        List<Object[]> resultados = pedidoRepository.contarInformeVentas(inicio, fin);
+
+        System.out.println("RESULTADO: " + java.util.Arrays.deepToString(resultados.toArray()));
+
+        Object[] resultado = resultados.get(0);
 
         long numeroPedidos = ((Number) resultado[0]).longValue();
-        BigDecimal total = (BigDecimal) resultado[1];
-        BigDecimal baseImponible = (BigDecimal) resultado[2];
-        BigDecimal iva = (BigDecimal) resultado[3];
+        BigDecimal total = new BigDecimal(resultado[1].toString());
+        BigDecimal baseImponible = new BigDecimal(resultado[2].toString());
+        BigDecimal iva = new BigDecimal(resultado[3].toString());
 
         return new InformeVentasDTO(numeroPedidos, total, baseImponible, iva);
     }
 
+
     // Ranking de productos más vendidos
     public List<ProductoTopDTO> productosTop(LocalDate desde, LocalDate hasta, Integer limite) {
-        LocalDateTime desdeDateTime = desde.atStartOfDay();
-        LocalDateTime hastaDateTime = hasta.atTime(23, 59, 59);
+        LocalDate hastaFin = hasta.plusDays(1);
 
-        List<Object[]> resultados = productoRepository.findProductosTop(desdeDateTime, hastaDateTime);
+        List<Object[]> resultados = productoRepository.findProductosTop(desde, hastaFin);
 
         return resultados.stream()
                 .limit(limite)

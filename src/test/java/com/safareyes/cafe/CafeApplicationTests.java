@@ -70,23 +70,23 @@ class CafeApplicationTests {
 
         // GET 7 - Ranking de productos más vendidos
         List<ProductoTopDTO> endpoint7 = informeService.productosTop(LocalDate.now().minusDays(30), LocalDate.now(), 10);
-        System.out.println(endpoint7);
-
-        // Productos por categoría
-        List<Producto> endpoint8 = productoRepository.findByCategoriaIdAndActivoTrue(1);
-        System.out.println(endpoint8);
-
-        // Buscar productos por nombre
-        Page<Producto> endpoint9 = productoRepository.findByActivoTrueAndNombreContainingIgnoreCase("", PageRequest.of(0, 10));
-        System.out.println(endpoint9);
-
-        // Productos con alérgenos
-        List<ProducoConAlergenos> endpoint10 = productoRepository.BuscarProductosConAlergenos();
-        System.out.println(endpoint10);
-
-        // Número de productos por categoría
-        List<buscarPorCategoria> endpoint11 = productoRepository.BuscarNumeroPorCategoria();
-        System.out.println(endpoint11);
-    }
-
-}
+        System.out.println(endpoint7);}}
+//
+//        // Productos por categoría
+//        List<Producto> endpoint8 = productoRepository.findByCategoriaIdAndActivoTrue(1);
+//        System.out.println(endpoint8);
+//
+//        // Buscar productos por nombre
+//        Page<Producto> endpoint9 = productoRepository.findByActivoTrueAndNombreContainingIgnoreCase("", PageRequest.of(0, 10));
+//        System.out.println(endpoint9);
+//
+//        // Productos con alérgenos
+//        List<ProducoConAlergenos> endpoint10 = productoRepository.BuscarProductosConAlergenos();
+//        System.out.println(endpoint10);
+//
+//        // Número de productos por categoría
+//        List<buscarPorCategoria> endpoint11 = productoRepository.BuscarNumeroPorCategoria();
+//        System.out.println(endpoint11);
+//    }
+//
+//}

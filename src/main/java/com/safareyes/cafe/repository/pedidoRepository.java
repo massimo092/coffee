@@ -12,13 +12,16 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.NativeQuery;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
 public interface pedidoRepository extends JpaRepository<Pedido, Integer> {
 
+    //GET 4 detalle con lineas
     @Query(nativeQuery = true, value = "SELECT p.id AS pedido_id, p.numero_turno, p.estado, " +
             "p.subtotal, p.descuento, p.total, " +
             "lp.id AS linea_id, lp.cantidad, lp.precio_unitario, lp.producto_id " +
@@ -29,6 +32,7 @@ public interface pedidoRepository extends JpaRepository<Pedido, Integer> {
     List<lineaPedidoDTO> pedidoConLineas(Integer id);
 
     //he tenido que añadir el CAST ya que en postman me daba error
+    //GET 5 listado paginado por estado y fecha
     @Query("SELECT p FROM Pedido p " +
             "WHERE (:estado IS NULL OR p.estado = :estado) " +
             "AND (CAST(:fechaInicio AS LocalDateTime) IS NULL OR p.fechaHora >= :fechaInicio) " +
@@ -38,13 +42,16 @@ public interface pedidoRepository extends JpaRepository<Pedido, Integer> {
 
     long countByFechaHoraBetween(LocalDateTime inicio, LocalDateTime fin);
 
-    @Query(nativeQuery = true, value =
-            "SELECT COUNT(p.id) AS numeroPedidos, " +
-            "COALESCE(SUM(p.total), 0) AS total, " +
-            "COALESCE(SUM(p.base_imponible), 0) AS baseImponible, " +
-            "COALESCE(SUM(p.iva), 0) AS iva " +
-            "FROM cafeteria.pedido p " +
-            "WHERE p.estado = 'ENTREGADO' " +
-            "AND p.fecha_hora >= ?1 AND p.fecha_hora <= ?2")
-    Object[] contarInformeVentas(LocalDateTime fechaInicio, LocalDateTime fechaFin);
+    @Query(nativeQuery = true, value = """
+        SELECT COUNT(p.id) AS numeroPedidos,
+        COALESCE(SUM(p.total), 0) AS total,
+        COALESCE(SUM(p.base_imponible), 0) AS baseImponible,
+        COALESCE(SUM(p.iva), 0) AS iva
+        FROM cafeteria.pedido p
+        WHERE p.estado = 'entregado'
+          AND CAST(p.fecha_hora AS DATE) >= :desde
+          AND CAST(p.fecha_hora AS DATE) < :hasta
+        """)
+    List<Object[]> contarInformeVentas(@Param("desde") LocalDate fechaInicio,
+                                       @Param("hasta") LocalDate fechaFin);
 }

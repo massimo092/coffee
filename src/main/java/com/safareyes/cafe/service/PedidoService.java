@@ -46,11 +46,11 @@ public class PedidoService {
 
     // Transiciones válidas de estado (RN-08)
     private static final Map<String, List<String>> TRANSICIONES_VALIDAS = Map.of(
-            "PENDIENTE", List.of("EN_PREPARACION", "CANCELADO"),
-            "EN_PREPARACION", List.of("LISTO"),
-            "LISTO", List.of("ENTREGADO"),
-            "ENTREGADO", List.of(),
-            "CANCELADO", List.of()
+            "pendiente", List.of("en_preparacion", "cancelado"),
+            "en_preparacion", List.of("listo"),
+            "listo", List.of("entregado"),
+            "entregado", List.of(),
+            "cancelado", List.of()
     );
 
 
@@ -155,7 +155,7 @@ public class PedidoService {
         // Validar y aplicar cupón si se proporciona (RN-06)
         Cupon cuponAplicado = null;
         if (request.getCodigoCupon() != null && !request.getCodigoCupon().isEmpty()) {
-            cuponAplicado = validarYAplicarCupon(request.getCodigoCupon(), subtotal, pedido);
+            cuponAplicado = validarYAplicarCupon(request.getCodigoCupon(), subtotal, pedido.getUsuarioId());
         }
 
         // Calcular descuento (RN-07)
@@ -183,59 +183,35 @@ public class PedidoService {
     /**
      * Valida un cupón según RN-06.
      */
-    private Cupon validarYAplicarCupon(String codigo, BigDecimal subtotal, Pedido pedido) {
+    private Cupon validarYAplicarCupon(String codigo, BigDecimal subtotal, Usuario usuario) {
         Cupon cupon = cuponRepository.findByCodigo(codigo)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "Cupón no encontrado: " + codigo));
 
-        // RN-06: Verificar que está activo
-        if (Boolean.FALSE.equals(cupon.getActivo())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "El cupón \"" + codigo + "\" no está activo");
-        }
-
-        // RN-06: Verificar fecha de vigencia
         LocalDateTime ahora = LocalDateTime.now();
+        if (Boolean.FALSE.equals(cupon.getActivo())) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "El cupón no está activo");
+        }
         if (cupon.getFechaInicio() != null && ahora.isBefore(cupon.getFechaInicio())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "El cupón \"" + codigo + "\" aún no ha comenzado a ser válido");
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "El cupón aún no es válido");
         }
         if (cupon.getFechaFin() != null && ahora.isAfter(cupon.getFechaFin())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "El cupón \"" + codigo + "\" ha expirado");
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "El cupón ha expirado");
         }
-
-        // RN-06: Verificar usos máximos
         if (cupon.getUsosMaximos() != null && cupon.getUsosActuales() >= cupon.getUsosMaximos()) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "El cupón \"" + codigo + "\" ha alcanzado su límite de usos");
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "El cupón ha alcanzado sus usos máximos");
         }
-
-        // RN-06: Verificar importe mínimo
         if (cupon.getImporteMinimo() != null && subtotal.compareTo(cupon.getImporteMinimo()) < 0) {
             throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "El subtotal no alcanza el importe mínimo para el cupón \"" + codigo +
-                    "\" (mínimo: " + cupon.getImporteMinimo() + ")");
+                    "El subtotal no alcanza el importe mínimo del cupón");
         }
-
-        // RN-06: Si es personal, verificar email del cliente
-        if ("PERSONAL".equalsIgnoreCase(cupon.getTipo()) && cupon.getEmailCliente() != null) {
-            if (pedido.getUsuarioId() == null) {
+        // Personal = tiene un email asignado (no depende del tipo)
+        if (cupon.getEmailCliente() != null) {
+            if (usuario == null || !cupon.getEmailCliente().equalsIgnoreCase(usuario.getEmail())) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                        "El cupón \"" + codigo + "\" es personal y requiere un usuario registrado");
-            }
-            String emailUsuario = pedido.getUsuarioId().getEmail();
-            if (emailUsuario == null || !emailUsuario.equalsIgnoreCase(cupon.getEmailCliente())) {
-                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                        "El cupón \"" + codigo + "\" es personal y no coincide con el email del cliente");
+                        "El cupón es personal y no corresponde a este cliente");
             }
         }
-
-        // Incrementar usos actuales
-        cupon.setUsosActuales(cupon.getUsosActuales() + 1);
-        cuponRepository.save(cupon);
-
-        pedido.setCuponId(cupon);
         return cupon;
     }
 
@@ -289,7 +265,7 @@ public class PedidoService {
         }
 
         // RN-08: Si se cancela, devolver el uso del cupón
-        if ("CANCELADO".equals(nuevoEstado) && pedido.getCuponId() != null) {
+        if ("cancelado".equals(nuevoEstado) && pedido.getCuponId() != null) {
             Cupon cupon = pedido.getCuponId();
             cupon.setUsosActuales(Math.max(0, cupon.getUsosActuales() - 1));
             cuponRepository.save(cupon);
@@ -302,20 +278,26 @@ public class PedidoService {
     /**
      * Genera el informe de ventas según RN-10.
      */
+    /**
+     * Genera el informe de ventas según RN-10.
+     */
     public InformeVentasDTO obtenerInformeVentas(LocalDate fechaInicio, LocalDate fechaFin) {
-        LocalDateTime inicio = fechaInicio.atStartOfDay();
-        LocalDateTime fin = fechaFin.atTime(23, 59, 59);
 
-        Object[] resultado = pedidoRepository.contarInformeVentas(inicio, fin);
-        if (resultado == null || resultado.length < 4) {
+        LocalDate fin = fechaFin.plusDays(1);
+
+        List<Object[]> resultados = pedidoRepository.contarInformeVentas(fechaInicio, fin);
+
+        if (resultados.isEmpty()) {
             return new InformeVentasDTO(0L, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
         }
+
+        Object[] resultado = resultados.get(0);
 
         long numeroPedidos = ((Number) resultado[0]).longValue();
         BigDecimal total = (BigDecimal) resultado[1];
         BigDecimal baseImponible = (BigDecimal) resultado[2];
-        BigDecimal iva = (BigDecimal) resultado[3];
+            BigDecimal iva = (BigDecimal) resultado[3];
 
-        return new InformeVentasDTO(numeroPedidos, total, baseImponible, iva);
-    }
+            return new InformeVentasDTO(numeroPedidos, total, baseImponible, iva);
+        }
 }
