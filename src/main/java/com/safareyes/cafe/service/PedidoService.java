@@ -39,6 +39,9 @@ public class PedidoService {
     private cuponRepository cuponRepository;
 
     @Autowired
+    private CuponService cuponService;
+
+    @Autowired
     private usuarioRepository usuarioRepository;
 
     @Autowired
@@ -156,6 +159,10 @@ public class PedidoService {
         Cupon cuponAplicado = null;
         if (request.getCodigoCupon() != null && !request.getCodigoCupon().isEmpty()) {
             cuponAplicado = validarYAplicarCupon(request.getCodigoCupon(), subtotal, pedido.getUsuarioId());
+            pedido.setCuponId(cuponAplicado);
+            int usosActuales = cuponAplicado.getUsosActuales() != null ? cuponAplicado.getUsosActuales() : 0;
+            cuponAplicado.setUsosActuales(usosActuales + 1);
+            cuponRepository.save(cuponAplicado);
         }
 
         // Calcular descuento (RN-07)
@@ -184,35 +191,8 @@ public class PedidoService {
      * Valida un cupón según RN-06.
      */
     private Cupon validarYAplicarCupon(String codigo, BigDecimal subtotal, Usuario usuario) {
-        Cupon cupon = cuponRepository.findByCodigo(codigo)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                        "Cupón no encontrado: " + codigo));
-
-        LocalDateTime ahora = LocalDateTime.now();
-        if (Boolean.FALSE.equals(cupon.getActivo())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "El cupón no está activo");
-        }
-        if (cupon.getFechaInicio() != null && ahora.isBefore(cupon.getFechaInicio())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "El cupón aún no es válido");
-        }
-        if (cupon.getFechaFin() != null && ahora.isAfter(cupon.getFechaFin())) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "El cupón ha expirado");
-        }
-        if (cupon.getUsosMaximos() != null && cupon.getUsosActuales() >= cupon.getUsosMaximos()) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY, "El cupón ha alcanzado sus usos máximos");
-        }
-        if (cupon.getImporteMinimo() != null && subtotal.compareTo(cupon.getImporteMinimo()) < 0) {
-            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                    "El subtotal no alcanza el importe mínimo del cupón");
-        }
-        // Personal = tiene un email asignado (no depende del tipo)
-        if (cupon.getEmailCliente() != null) {
-            if (usuario == null || !cupon.getEmailCliente().equalsIgnoreCase(usuario.getEmail())) {
-                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
-                        "El cupón es personal y no corresponde a este cliente");
-            }
-        }
-        return cupon;
+        String emailCliente = usuario != null ? usuario.getEmail() : null;
+        return cuponService.validarCupon(codigo, subtotal, emailCliente);
     }
 
     /**
@@ -267,7 +247,8 @@ public class PedidoService {
         // RN-08: Si se cancela, devolver el uso del cupón
         if ("cancelado".equals(nuevoEstado) && pedido.getCuponId() != null) {
             Cupon cupon = pedido.getCuponId();
-            cupon.setUsosActuales(Math.max(0, cupon.getUsosActuales() - 1));
+            int usosActuales = cupon.getUsosActuales() != null ? cupon.getUsosActuales() : 0;
+            cupon.setUsosActuales(Math.max(0, usosActuales - 1));
             cuponRepository.save(cupon);
         }
 
