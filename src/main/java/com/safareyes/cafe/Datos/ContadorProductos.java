@@ -11,6 +11,6 @@ public class ContadorProductos {
     private Long id;
     private String categoria;
     private Long productos;
-
+    private Boolean disponibilidad;
 
 }

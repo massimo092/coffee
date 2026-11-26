@@ -24,6 +24,10 @@ public class Categoria {
     @Column(name = "descripcion")
     private String descripcion;
 
+    @Builder.Default
+    @Column(name = "disponibilidad", nullable = false)
+    private Boolean disponibilidad = true;
+
 }
 
 

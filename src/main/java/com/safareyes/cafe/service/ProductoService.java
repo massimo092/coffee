@@ -1,5 +1,6 @@
 package com.safareyes.cafe.service;
 
+import com.safareyes.cafe.Datos.ProductoDisponibilidadResponse;
 import com.safareyes.cafe.Datos.ProductoCreateDto;
 import com.safareyes.cafe.modelo.Alergeno;
 import com.safareyes.cafe.modelo.Categoria;
@@ -9,8 +10,10 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.AllArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
 import java.util.stream.Collectors;
@@ -89,5 +92,48 @@ public class ProductoService {
                 .toList());
 
         return dto;
+    }
+
+    @Transactional
+    public ProductoCreateDto modificar(Integer id, ProductoCreateDto dto) {
+
+        // 1. Buscar el producto; si no existe o está dado de baja, 404
+        Producto producto = productoRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Producto no encontrado: ID " + id));
+        if (Boolean.FALSE.equals(producto.getActivo())) {
+            throw new EntityNotFoundException("Producto no encontrado: ID " + id);
+        }
+
+        // 2. Buscar la categoría nueva
+        Categoria categoria = categoriaRepository.findById(dto.getCategoriaId())
+                .orElseThrow(() -> new EntityNotFoundException("Categoría no encontrada"));
+
+        // 3. Cambiar los datos
+        producto.setNombre(dto.getNombre());
+        producto.setDescripcion(dto.getDescripcion());
+        producto.setPrecio(dto.getPrecio());
+        producto.setCategoria(categoria);
+
+        // 4. Sustituir los alérgenos por los nuevos
+        if (dto.getAlergenosIds() != null && !dto.getAlergenosIds().isEmpty()) {
+            producto.setAlergenos(alergenoRepository.findAllById(dto.getAlergenosIds()));
+        } else {
+            producto.setAlergenos(new ArrayList<>());
+        }
+
+        // 5. Guardar y devolver el producto con todos sus datos
+        Producto guardado = productoRepository.save(producto);
+        return toDto(guardado);
+    }
+
+    @Transactional
+    public ProductoDisponibilidadResponse actualizarDisponibilidad(Integer id, Boolean disponible) {
+        Producto producto = productoRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Producto no encontrado: ID " + id));
+
+        producto.setDisponible(disponible);
+        Producto guardado = productoRepository.save(producto);
+        return new ProductoDisponibilidadResponse(guardado.getId(), guardado.getDisponible());
     }
 }

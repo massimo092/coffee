@@ -1,5 +1,6 @@
 package com.safareyes.cafe.Datos;
 
+import com.safareyes.cafe.validacion.CuponValido;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -12,6 +13,7 @@ import java.math.BigDecimal;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
+@CuponValido
 public class CuponValidarDTO {
 
     @NotBlank
