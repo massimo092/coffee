@@ -21,7 +21,8 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer> {
     Page<Producto> findByActivoTrueAndCategoriaIdAndNombreContainingIgnoreCase(
             Integer categoriaId, String texto, Pageable pageable);
     //GET 2 Detalle con alérgenos
-    @Query("SELECT DISTINCT p FROM Producto p LEFT JOIN FETCH p.alergenos WHERE p.id = :id")
+    @Query("SELECT DISTINCT p FROM Producto p LEFT JOIN FETCH p.alergenos " +
+            "WHERE p.id = :id AND p.activo = true")
     Optional<Producto> findByIdWithAlergenos(@Param("id") Integer id);
 
     //GET 3
@@ -43,7 +44,7 @@ public interface ProductoRepository extends JpaRepository<Producto, Integer> {
         FROM cafeteria.linea_pedido lp
         JOIN cafeteria.producto p ON lp.producto_id = p.id
         JOIN cafeteria.pedido ped ON lp.pedido_id = ped.id
-        WHERE ped.estado = 'entregado'
+        WHERE LOWER(ped.estado) = 'entregado'
           AND CAST(ped.fecha_hora AS DATE) >= :desde
           AND CAST(ped.fecha_hora AS DATE) < :hasta
         GROUP BY lp.producto_id, p.nombre

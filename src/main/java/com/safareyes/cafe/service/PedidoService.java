@@ -4,10 +4,12 @@ import com.safareyes.cafe.Datos.CambiarEstadoRequest;
 import com.safareyes.cafe.Datos.CrearPedidoRequest;
 import com.safareyes.cafe.Datos.InformeVentasDTO;
 import com.safareyes.cafe.Datos.LineaPedidoRequest;
+import com.safareyes.cafe.Exceptions.CuponInvalidoException;
 import com.safareyes.cafe.modelo.*;
 import com.safareyes.cafe.repository.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -24,6 +26,7 @@ public class PedidoService {
 
     private static final BigDecimal IVA_RATE = new BigDecimal("1.10");
     private static final BigDecimal SOCIO_DESCUENTO = new BigDecimal("0.10");
+    private static final int TURNO_LOCK_NAMESPACE = 6_842_391;
     private static final int MIN_LINEAS = 1;
     private static final int MAX_LINEAS = 15;
     private static final int MIN_CANTIDAD = 1;
@@ -47,6 +50,9 @@ public class PedidoService {
     @Autowired
     private lineaPedidoRepository lineaPedidoRepository;
 
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
+
     // Transiciones válidas de estado (RN-08)
     private static final Map<String, List<String>> TRANSICIONES_VALIDAS = Map.of(
             "pendiente", List.of("en_preparacion", "cancelado"),
@@ -59,6 +65,11 @@ public class PedidoService {
 
     @Transactional
     public Pedido crearPedido(CrearPedidoRequest request) {
+        if (request == null) {
+            throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                    "Los datos del pedido son obligatorios");
+        }
+
         // RN-04: Validar número de líneas
         List<LineaPedidoRequest> lineas = request.getLineas();
         if (lineas == null || lineas.size() < MIN_LINEAS) {
@@ -73,6 +84,14 @@ public class PedidoService {
         // RN-04: Agrupar líneas del mismo producto
         Map<Integer, Integer> productosAgrupados = new LinkedHashMap<>();
         for (LineaPedidoRequest linea : lineas) {
+            if (linea == null || linea.getProductoId() == null || linea.getCantidad() == null) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "Cada línea debe incluir producto y cantidad");
+            }
+            if (linea.getCantidad() < MIN_CANTIDAD || linea.getCantidad() > MAX_CANTIDAD) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "La cantidad por línea debe estar entre " + MIN_CANTIDAD + " y " + MAX_CANTIDAD);
+            }
             productosAgrupados.merge(linea.getProductoId(), linea.getCantidad(), Integer::sum);
         }
 
@@ -87,13 +106,13 @@ public class PedidoService {
                             "Producto no encontrado: ID " + productoId));
 
             // RN-01 y RN-02: Validar que el producto esté activo
-            if (Boolean.FALSE.equals(producto.getActivo())) {
+            if (!Boolean.TRUE.equals(producto.getActivo())) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "El producto \"" + producto.getNombre() + "\" está dado de baja y no se puede pedir");
             }
 
             // RN-02: Validar que el producto esté disponible
-            if (Boolean.FALSE.equals(producto.getDisponible())) {
+            if (!Boolean.TRUE.equals(producto.getDisponible())) {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "El producto \"" + producto.getNombre() + "\" está agotado");
             }
@@ -103,6 +122,11 @@ public class PedidoService {
                 throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                         "La cantidad del producto \"" + producto.getNombre() + "\" (" + cantidad +
                         ") supera el límite de " + MAX_CANTIDAD + " unidades por línea");
+            }
+
+            if (producto.getPrecio() == null || producto.getPrecio().compareTo(BigDecimal.ZERO) < 0) {
+                throw new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
+                        "El producto \"" + producto.getNombre() + "\" tiene un precio inválido");
             }
 
             // RN-03: Guardar el precio unitario vigente
@@ -121,19 +145,21 @@ public class PedidoService {
         }
 
         // Crear el pedido
+        LocalDateTime fechaHoraCreacion = LocalDateTime.now();
         Pedido pedido = Pedido.builder()
-                .fechaHora(LocalDateTime.now())
+                .fechaHora(fechaHoraCreacion)
                 .estado("pendiente")
                 .build();
 
-        // RN-09: Calcular número de turno
-        LocalDate hoy = LocalDate.now();
-        long pedidosHoy = pedidoRepository.countByFechaHoraBetween(
+        // RN-09: Serializar el cálculo del turno dentro de la transacción.
+        LocalDate hoy = fechaHoraCreacion.toLocalDate();
+        jdbcTemplate.execute("SELECT pg_advisory_xact_lock(" + TURNO_LOCK_NAMESPACE + ", " + hoy.toEpochDay() + ")");
+        long pedidosHoy = pedidoRepository.contarPedidosEnIntervalo(
                 hoy.atStartOfDay(), hoy.plusDays(1).atStartOfDay());
         pedido.setNumeroTurno((int) pedidosHoy + 1);
 
         // Asignar usuario si se proporciona dniSocio
-        if (request.getDniSocio() != null && !request.getDniSocio().isEmpty()) {
+        if (request.getDniSocio() != null && !request.getDniSocio().isBlank()) {
             Usuario usuario = usuarioRepository.findByEmail(request.getDniSocio())
                     .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNPROCESSABLE_ENTITY,
                             "Usuario no encontrado: " + request.getDniSocio()));
@@ -152,35 +178,47 @@ public class PedidoService {
         // Calcular subtotal (RN-05)
         BigDecimal subtotal = lineasPedido.stream()
                 .map(l -> l.getPrecio_unitario().multiply(BigDecimal.valueOf(l.getCantidad())))
-                .reduce(BigDecimal.ZERO, BigDecimal::add);
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
         pedido.setSubtotal(subtotal);
 
         // Validar y aplicar cupón si se proporciona (RN-06)
-        Cupon cuponAplicado = null;
-        if (request.getCodigoCupon() != null && !request.getCodigoCupon().isEmpty()) {
-            cuponAplicado = validarYAplicarCupon(request.getCodigoCupon(), subtotal, pedido.getUsuarioId());
-            pedido.setCuponId(cuponAplicado);
-            int usosActuales = cuponAplicado.getUsosActuales() != null ? cuponAplicado.getUsosActuales() : 0;
-            cuponAplicado.setUsosActuales(usosActuales + 1);
-            cuponRepository.save(cuponAplicado);
+        Cupon cuponValidado = null;
+        if (request.getCodigoCupon() != null && !request.getCodigoCupon().isBlank()) {
+            cuponValidado = validarYAplicarCupon(request.getCodigoCupon(), subtotal, pedido.getUsuarioId());
         }
 
-        // Calcular descuento (RN-07)
-        BigDecimal descuento = calcularDescuento(pedido, cuponAplicado, subtotal);
+        // RN-07: los descuentos no se acumulan; solo se consume el cupón si ofrece el mayor descuento.
+        BigDecimal descuentoSocio = calcularDescuentoSocio(pedido, subtotal);
+        BigDecimal descuentoCupon = cuponValidado != null
+                ? cuponService.calcularDescuentoCupon(cuponValidado, subtotal)
+                : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
+        boolean usarCupon = cuponValidado != null && descuentoCupon.compareTo(descuentoSocio) > 0;
+        BigDecimal descuento = (usarCupon ? descuentoCupon : descuentoSocio)
+                .min(subtotal)
+                .setScale(2, RoundingMode.HALF_UP);
+
+        if (usarCupon) {
+            pedido.setCuponId(cuponValidado);
+            int usosActualizados = cuponRepository.incrementarUsoSiDisponible(cuponValidado.getId());
+            if (usosActualizados == 0) {
+                throw new CuponInvalidoException("El cupón ha agotado sus usos");
+            }
+        }
         pedido.setDescuento(descuento);
 
         // RN-05: Calcular totales
-        BigDecimal total = subtotal.subtract(descuento);
+        BigDecimal total = subtotal.subtract(descuento).setScale(2, RoundingMode.HALF_UP);
 
         // RN-07: El total nunca puede ser negativo
         if (total.compareTo(BigDecimal.ZERO) < 0) {
-            total = BigDecimal.ZERO;
+            total = BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
         }
         pedido.setTotal(total);
 
         // RN-05: Base imponible e IVA
         BigDecimal baseImponible = total.divide(IVA_RATE, 2, RoundingMode.HALF_UP);
-        BigDecimal iva = total.subtract(baseImponible);
+        BigDecimal iva = total.subtract(baseImponible).setScale(2, RoundingMode.HALF_UP);
         pedido.setBaseImponible(baseImponible);
         pedido.setIva(iva);
 
@@ -198,29 +236,12 @@ public class PedidoService {
     /**
      * Calcula el descuento según RN-07.
      */
-    private BigDecimal calcularDescuento(Pedido pedido, Cupon cupon, BigDecimal subtotal) {
-        BigDecimal descuentoSocio = BigDecimal.ZERO;
-        BigDecimal descuentoCupon = BigDecimal.ZERO;
-
+    private BigDecimal calcularDescuentoSocio(Pedido pedido, BigDecimal subtotal) {
         // RN-07: Descuento de socio FitZone (10%)
         if (pedido.getUsuarioId() != null && "SOCIO_FITZONE".equalsIgnoreCase(pedido.getUsuarioId().getRol())) {
-            descuentoSocio = subtotal.multiply(SOCIO_DESCUENTO);
+            return subtotal.multiply(SOCIO_DESCUENTO).setScale(2, RoundingMode.HALF_UP);
         }
-
-        // RN-07: Descuento del cupón
-        if (cupon != null) {
-            descuentoCupon = cupon.getValor();
-        }
-
-        // RN-07: No se acumulan, se aplica el mayor
-        BigDecimal descuento = BigDecimal.ZERO;
-        if (descuentoSocio.compareTo(descuentoCupon) >= 0) {
-            descuento = descuentoSocio;
-        } else {
-            descuento = descuentoCupon;
-        }
-
-        return descuento;
+        return BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP);
     }
 
     /**
@@ -228,12 +249,16 @@ public class PedidoService {
      */
     @Transactional
     public Pedido cambiarEstado(Integer pedidoId, CambiarEstadoRequest request) {
-        Pedido pedido = pedidoRepository.findById(pedidoId)
+        Pedido pedido = pedidoRepository.findByIdForUpdate(pedidoId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
                         "Pedido no encontrado: ID " + pedidoId));
 
-        String estadoActual = pedido.getEstado();
-        String nuevoEstado = request.getEstado();
+        String estadoActual = pedido.getEstado() == null
+                ? ""
+                : pedido.getEstado().trim().toLowerCase(Locale.ROOT);
+        String nuevoEstado = request == null || request.getEstado() == null
+                ? ""
+                : request.getEstado().trim().toLowerCase(Locale.ROOT);
 
         // RN-08: Validar transición
         List<String> estadosPermitidos = TRANSICIONES_VALIDAS.getOrDefault(estadoActual, List.of());
@@ -247,18 +272,13 @@ public class PedidoService {
         // RN-08: Si se cancela, devolver el uso del cupón
         if ("cancelado".equals(nuevoEstado) && pedido.getCuponId() != null) {
             Cupon cupon = pedido.getCuponId();
-            int usosActuales = cupon.getUsosActuales() != null ? cupon.getUsosActuales() : 0;
-            cupon.setUsosActuales(Math.max(0, usosActuales - 1));
-            cuponRepository.save(cupon);
+            cuponRepository.devolverUso(cupon.getId());
         }
 
         pedido.setEstado(nuevoEstado);
         return pedidoRepository.save(pedido);
     }
 
-    /**
-     * Genera el informe de ventas según RN-10.
-     */
     /**
      * Genera el informe de ventas según RN-10.
      */
@@ -277,8 +297,8 @@ public class PedidoService {
         long numeroPedidos = ((Number) resultado[0]).longValue();
         BigDecimal total = (BigDecimal) resultado[1];
         BigDecimal baseImponible = (BigDecimal) resultado[2];
-            BigDecimal iva = (BigDecimal) resultado[3];
+        BigDecimal iva = (BigDecimal) resultado[3];
 
-            return new InformeVentasDTO(numeroPedidos, total, baseImponible, iva);
-        }
+        return new InformeVentasDTO(numeroPedidos, total, baseImponible, iva);
+    }
 }

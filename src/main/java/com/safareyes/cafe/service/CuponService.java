@@ -60,20 +60,32 @@ public class CuponService {
             throw new CuponInvalidoException("Los datos de validación son obligatorios");
         }
 
-        Cupon cupon = validarCupon(req.getCodigo(), req.getSubtotal(), emailCliente);
-        if (cupon.getTipo() == null || cupon.getValor() == null) {
+        BigDecimal subtotal = req.getSubtotal() != null
+                ? req.getSubtotal().setScale(2, RoundingMode.HALF_UP)
+                : null;
+        Cupon cupon = validarCupon(req.getCodigo(), subtotal, emailCliente);
+        BigDecimal descuento = calcularDescuentoCupon(cupon, subtotal);
+
+        return new ValidarCuponResponse(cupon.getCodigo(), descuento,
+                subtotal.subtract(descuento).setScale(2, RoundingMode.HALF_UP));
+    }
+
+    public BigDecimal calcularDescuentoCupon(Cupon cupon, BigDecimal subtotal) {
+        if (cupon == null || cupon.getTipo() == null || cupon.getValor() == null
+                || cupon.getValor().compareTo(BigDecimal.ZERO) < 0 || subtotal == null) {
             throw new CuponInvalidoException("El cupón tiene una configuración inválida");
         }
 
-        BigDecimal descuento = switch (cupon.getTipo().toLowerCase(Locale.ROOT)) {
-            case "porcentaje" -> req.getSubtotal().multiply(cupon.getValor())
+        BigDecimal subtotalRedondeado = subtotal.setScale(2, RoundingMode.HALF_UP);
+        BigDecimal descuento = switch (cupon.getTipo().trim().toLowerCase(Locale.ROOT)) {
+            case "porcentaje" -> subtotalRedondeado.multiply(cupon.getValor())
                     .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-            case "importe" -> cupon.getValor().min(req.getSubtotal());
+            case "importe" -> cupon.getValor().min(subtotalRedondeado)
+                    .setScale(2, RoundingMode.HALF_UP);
             default -> throw new CuponInvalidoException("Tipo de cupón desconocido: " + cupon.getTipo());
         };
 
-        return new ValidarCuponResponse(cupon.getCodigo(), descuento,
-                req.getSubtotal().subtract(descuento));
+        return descuento.min(subtotalRedondeado).setScale(2, RoundingMode.HALF_UP);
     }
 
     @Transactional(readOnly = true)
@@ -84,6 +96,7 @@ public class CuponService {
         if (subtotal == null || subtotal.compareTo(BigDecimal.ZERO) < 0) {
             throw new CuponInvalidoException("El subtotal debe ser mayor o igual a cero");
         }
+        subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
 
         Cupon cupon = cuponRepository.findByCodigoIgnoreCase(codigo.trim())
                 .orElseThrow(() -> new CuponInvalidoException("El cupón no existe"));
@@ -101,7 +114,7 @@ public class CuponService {
         if (cupon.getUsosMaximos() != null && usosActuales >= cupon.getUsosMaximos()) {
             throw new CuponInvalidoException("El cupón ha agotado sus usos");
         }
-        if (cupon.getImporteMinimo() != null && subtotal.compareTo(cupon.getImporteMinimo()) < 0) {
+        if (cupon.getImporteMinimo() != null && subtotal.compareTo(cupon.getImporteMinimo()) <= 0) {
             throw new CuponInvalidoException("El importe mínimo es " + cupon.getImporteMinimo());
         }
 

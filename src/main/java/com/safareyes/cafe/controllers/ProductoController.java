@@ -1,7 +1,9 @@
 package com.safareyes.cafe.controllers;
 
 import com.safareyes.cafe.Datos.ProductoCreateDto;
+import com.safareyes.cafe.Datos.ActualizarActivoRequest;
 import com.safareyes.cafe.Datos.ActualizarDisponibilidadRequest;
+import com.safareyes.cafe.Datos.ProductoActivoResponse;
 import com.safareyes.cafe.Datos.ProductoDisponibilidadResponse;
 import com.safareyes.cafe.service.ProductoService;
 import jakarta.validation.Valid;
@@ -50,5 +52,12 @@ public class ProductoController {
             @PathVariable Integer id,
             @Valid @RequestBody ActualizarDisponibilidadRequest request) {
         return ResponseEntity.ok(productoService.actualizarDisponibilidad(id, request.disponible()));
+    }
+
+    @PatchMapping("/{id}/activo")
+    public ResponseEntity<ProductoActivoResponse> actualizarActivo(
+            @PathVariable Integer id,
+            @Valid @RequestBody ActualizarActivoRequest request) {
+        return ResponseEntity.ok(productoService.actualizarActivo(id, request.activo()));
     }
 }

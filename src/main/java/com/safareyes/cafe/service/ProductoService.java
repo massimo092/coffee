@@ -2,6 +2,7 @@ package com.safareyes.cafe.service;
 
 import com.safareyes.cafe.Datos.ProductoDisponibilidadResponse;
 import com.safareyes.cafe.Datos.ProductoCreateDto;
+import com.safareyes.cafe.Datos.ProductoActivoResponse;
 import com.safareyes.cafe.modelo.Alergeno;
 import com.safareyes.cafe.modelo.Categoria;
 import com.safareyes.cafe.modelo.Producto;
@@ -135,5 +136,16 @@ public class ProductoService {
         producto.setDisponible(disponible);
         Producto guardado = productoRepository.save(producto);
         return new ProductoDisponibilidadResponse(guardado.getId(), guardado.getDisponible());
+    }
+
+    @Transactional
+    public ProductoActivoResponse actualizarActivo(Integer id, Boolean activo) {
+        Producto producto = productoRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND,
+                        "Producto no encontrado: ID " + id));
+
+        producto.setActivo(activo);
+        Producto guardado = productoRepository.save(producto);
+        return new ProductoActivoResponse(guardado.getId(), guardado.getActivo());
     }
 }

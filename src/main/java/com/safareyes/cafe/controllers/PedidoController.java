@@ -1,5 +1,6 @@
 package com.safareyes.cafe.controllers;
 
+import com.safareyes.cafe.Datos.CambiarEstadoRequest;
 import com.safareyes.cafe.Datos.CrearPedidoRequest;
 import com.safareyes.cafe.Datos.lineaPedidoDTO;
 import com.safareyes.cafe.modelo.Pedido;
@@ -70,6 +71,13 @@ public class PedidoController {
                 fechaFin != null ? fechaFin.atTime(23, 59, 59) : null,
                 pageable
         );
+    }
+
+    @PatchMapping("/{id}/estado")
+    public ResponseEntity<Pedido> cambiarEstado(
+            @PathVariable Integer id,
+            @Valid @RequestBody CambiarEstadoRequest request) {
+        return ResponseEntity.ok(pedidoService.cambiarEstado(id, request));
     }
 
     //Crear un nuevo pedido -POST

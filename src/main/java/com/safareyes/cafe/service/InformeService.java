@@ -4,7 +4,6 @@ import com.safareyes.cafe.Datos.InformeVentasDTO;
 import com.safareyes.cafe.Datos.ProductoTopDTO;
 import com.safareyes.cafe.repository.ProductoRepository;
 import com.safareyes.cafe.repository.pedidoRepository;
-import com.safareyes.cafe.repository.ProductoRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +26,6 @@ public class InformeService {
         LocalDate fin = fecha.plusDays(1);
 
         List<Object[]> resultados = pedidoRepository.contarInformeVentas(inicio, fin);
-
-        System.out.println("RESULTADO: " + java.util.Arrays.deepToString(resultados.toArray()));
 
         Object[] resultado = resultados.get(0);
 
